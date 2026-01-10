@@ -2,7 +2,7 @@
 
 buildscript {
     ext.kotlin_version = '2.2.0'
-    ext.exo_player_version = '2.18.2'
+    ext.exo_player_version = '2.19.1'
     ext.app_compat_version = '1.7.1'
     ext.constraint_layout_version = '2.2.1'
     ext.glide_version = '5.0.5'
