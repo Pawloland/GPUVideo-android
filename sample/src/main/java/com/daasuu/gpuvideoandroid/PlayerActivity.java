@@ -13,14 +13,14 @@ import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.media3.common.MediaItem;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 
 import com.daasuu.gpuv.egl.filter.GlFilter;
 import com.daasuu.gpuv.player.GPUPlayerView;
 import com.daasuu.gpuvideoandroid.widget.MovieWrapperView;
 import com.daasuu.gpuvideoandroid.widget.PlayerTimer;
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 
 import java.util.List;
 

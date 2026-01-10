@@ -6,9 +6,9 @@ import android.util.AttributeSet;
 import com.daasuu.gpuv.egl.GlConfigChooser;
 import com.daasuu.gpuv.egl.GlContextFactory;
 import com.daasuu.gpuv.egl.filter.GlFilter;
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.Player;
-import com.google.android.exoplayer2.video.VideoSize;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
 
 public class GPUPlayerView extends GLSurfaceView implements Player.Listener {
 

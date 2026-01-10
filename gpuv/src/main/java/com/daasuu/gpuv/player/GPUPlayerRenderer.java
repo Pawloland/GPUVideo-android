@@ -10,7 +10,7 @@ import android.view.Surface;
 import com.daasuu.gpuv.egl.*;
 import com.daasuu.gpuv.egl.filter.GlFilter;
 import com.daasuu.gpuv.egl.filter.GlLookUpTableFilter;
-import com.google.android.exoplayer2.ExoPlayer;
+import androidx.media3.exoplayer.ExoPlayer;
 
 import javax.microedition.khronos.egl.EGLConfig;
 
