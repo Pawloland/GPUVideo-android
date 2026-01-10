@@ -5,6 +5,7 @@ import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.util.Log;
 import android.util.Size;
+
 import com.daasuu.gpuv.egl.filter.GlFilter;
 
 import java.io.File;
@@ -287,7 +288,7 @@ public class GPUMp4Composer {
                 if (mediaMetadataRetriever != null) {
                     mediaMetadataRetriever.release();
                 }
-            } catch (RuntimeException e) {
+            } catch (Exception e) {
                 Log.e(TAG, "Failed to release mediaMetadataRetriever.", e);
             }
         }
@@ -313,7 +314,7 @@ public class GPUMp4Composer {
                 if (retriever != null) {
                     retriever.release();
                 }
-            } catch (RuntimeException e) {
+            } catch (Exception e) {
                 Log.e(TAG, "Failed to release mediaMetadataRetriever.", e);
             }
         }
