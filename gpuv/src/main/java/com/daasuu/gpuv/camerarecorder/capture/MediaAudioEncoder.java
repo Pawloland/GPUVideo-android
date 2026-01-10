@@ -1,6 +1,13 @@
 package com.daasuu.gpuv.camerarecorder.capture;
 
-import android.media.*;
+import android.annotation.SuppressLint;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaCodec;
+import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
+import android.media.MediaFormat;
+import android.media.MediaRecorder;
 import android.util.Log;
 
 import java.io.IOException;
@@ -9,7 +16,6 @@ import java.nio.ByteBuffer;
 
 public class MediaAudioEncoder extends MediaEncoder {
     private static final String TAG = "MediaAudioEncoder";
-
     private static final String MIME_TYPE = "audio/mp4a-latm";
     private static final int SAMPLE_RATE = 44100;    // 44.1[KHz] is only setting guaranteed to be available on all devices.
     private static final int BIT_RATE = 64000;
@@ -84,6 +90,7 @@ public class MediaAudioEncoder extends MediaEncoder {
      */
     private class AudioThread extends Thread {
         @Override
+        @SuppressLint("MissingPermission") // AUDIO_RECORD permission is checked at runtime, not declared in manifest of the library, but in the app using the library.
         public void run() {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
             try {

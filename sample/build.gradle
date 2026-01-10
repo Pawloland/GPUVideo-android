@@ -1,7 +1,9 @@
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
+plugins {
+    id 'com.android.application'
+}
 
 android {
+    lint { disable 'NotificationPermission' }
     compileSdkVersion COMPILE_SDK_VERSION as int
     defaultConfig {
         applicationId "com.daasuu.gpuvideoandroid"
@@ -18,14 +20,8 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
-    }
 
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+    namespace = 'com.daasuu.gpuvideoandroid'
 }
 
 dependencies {
@@ -39,7 +35,6 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
-
 
 
     implementation project(':gpuv')

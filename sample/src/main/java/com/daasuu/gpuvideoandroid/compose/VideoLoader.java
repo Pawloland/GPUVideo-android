@@ -49,12 +49,7 @@ public class VideoLoader {
         private final Context context;
         private final Handler handler = new Handler(Looper.getMainLooper());
 
-        private final String[] projection = new String[]{
-                MediaStore.Video.Media.DATA,
-                MediaStore.Video.Media.DURATION,
-                MediaStore.Video.Media.WIDTH,
-                MediaStore.Video.Media.HEIGHT,
-        };
+        private final String[] projection = new String[]{MediaStore.Video.Media.DATA, MediaStore.Video.Media.DURATION, MediaStore.Video.Media.WIDTH, MediaStore.Video.Media.HEIGHT,};
 
 
         public VideoLoadRunnable(VideoLoadListener listener, Context context) {
@@ -64,8 +59,7 @@ public class VideoLoader {
 
         @Override
         public void run() {
-            Cursor cursor = context.getContentResolver().query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection,
-                    null, null, MediaStore.Video.Media.DATE_MODIFIED);
+            Cursor cursor = context.getContentResolver().query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, null, null, MediaStore.Video.Media.DATE_MODIFIED);
 
             if (cursor == null) {
                 handler.post(new Runnable() {
@@ -81,33 +75,40 @@ public class VideoLoader {
 
             if (cursor.moveToLast()) {
                 do {
-                    String path = cursor.getString(cursor.getColumnIndex(projection[0]));
+                    int pathIndex = cursor.getColumnIndex(projection[0]);
+                    int durationIndex = cursor.getColumnIndex(projection[1]);
+                    int widthIndex = cursor.getColumnIndex(projection[2]);
+                    int heightIndex = cursor.getColumnIndex(projection[3]);
+
+                    if (pathIndex < 0 || durationIndex < 0 || widthIndex < 0 || heightIndex < 0) {
+                        Log.w(TAG, "Cursor is missing expected columns");
+                        continue; // skip this row or handle error
+                    }
+
+                    String path = cursor.getString(pathIndex);
                     if (path == null) continue;
+
                     if (!path.endsWith(".mp4") && !path.endsWith(".MOV") && !path.endsWith(".mov")) {
                         continue;
                     }
                     Log.d(TAG, "pick video from device path = " + path);
 
-                    String duration = cursor.getString(cursor.getColumnIndex(projection[1]));
+                    String duration = cursor.getString(durationIndex);
                     if (duration == null) duration = "0";
                     Log.d(TAG, "pick video from device duration = " + duration);
 
-                    String width = cursor.getString(cursor.getColumnIndex(projection[2]));
+                    String width = cursor.getString(widthIndex);
                     if (width == null) width = "0";
                     Log.d(TAG, "pick video from device width = " + width);
 
-                    String height = cursor.getString(cursor.getColumnIndex(projection[3]));
+                    String height = cursor.getString(heightIndex);
                     if (height == null) height = "0";
                     Log.d(TAG, "pick video from device height = " + height);
 
+
                     File file = new File(path);
                     if (file.exists()) {
-                        temp.add(new VideoItem(
-                                path,
-                                Integer.valueOf(duration),
-                                Integer.valueOf(width),
-                                Integer.valueOf(height)
-                        ));
+                        temp.add(new VideoItem(path, Integer.valueOf(duration), Integer.valueOf(width), Integer.valueOf(height)));
                     }
                     file = null;
 
