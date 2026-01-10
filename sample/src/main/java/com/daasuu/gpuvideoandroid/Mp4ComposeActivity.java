@@ -1,6 +1,7 @@
 package com.daasuu.gpuvideoandroid;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
@@ -20,6 +21,9 @@ import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.daasuu.gpuv.composer.FillMode;
 import com.daasuu.gpuv.composer.GPUMp4Composer;
 import com.daasuu.gpuv.egl.filter.GlFilter;
@@ -35,9 +39,6 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 
 public class Mp4ComposeActivity extends AppCompatActivity {
 
@@ -63,6 +64,9 @@ public class Mp4ComposeActivity extends AppCompatActivity {
     private String videoPath;
     private AlertDialog filterDialog;
     private GlFilter glFilter = new GlFilterGroup(new GlMonochromeFilter(), new GlVignetteFilter());
+
+    private boolean isPermissionRequestInProgress = false; // Flag to prevent repeated permission requests
+    private boolean permissionGrantedToastShown = false; // Flag to prevent spamming Toasts
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,7 +132,7 @@ public class Mp4ComposeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (checkPermission()) {
+        if (!isPermissionRequestInProgress && checkPermission()) {
             videoLoader = new VideoLoader(getApplicationContext());
             videoLoader.loadDeviceVideos(new VideoLoadListener() {
                 @Override
@@ -209,7 +213,16 @@ public class Mp4ComposeActivity extends AppCompatActivity {
 
 
     public File getAndroidMoviesFolder() {
-        return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
+        // Use app-specific directory for Android 10+ to avoid permission issues
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            File dir = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "GPUVideo");
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            return dir;
+        } else {
+            return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
+        }
     }
 
     public String getVideoFilePath() {
@@ -239,24 +252,33 @@ public class Mp4ComposeActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return true;
         }
-        // request permission if it has not been grunted.
-        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+        // For Android 10+, no need for WRITE_EXTERNAL_STORAGE as we use app-specific directory
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            if (!isPermissionRequestInProgress) {
+                isPermissionRequestInProgress = true;
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+            }
             return false;
         }
 
+        isPermissionRequestInProgress = false; // Reset the flag if permission is granted or not needed
         return true;
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        isPermissionRequestInProgress = false; // Reset the flag after handling the result
         switch (requestCode) {
             case PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(Mp4ComposeActivity.this, "permission has been grunted.", Toast.LENGTH_SHORT).show();
+                    if (!permissionGrantedToastShown) {
+                        Toast.makeText(Mp4ComposeActivity.this, "permission has been granted.", Toast.LENGTH_SHORT).show();
+                        permissionGrantedToastShown = true;
+                    }
                 } else {
-                    Toast.makeText(Mp4ComposeActivity.this, "[WARN] permission is not grunted.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(Mp4ComposeActivity.this, "[WARN] permission is not granted.", Toast.LENGTH_SHORT).show();
                 }
                 break;
         }

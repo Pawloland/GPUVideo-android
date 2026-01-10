@@ -1,6 +1,7 @@
 package com.daasuu.gpuvideoandroid;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -13,6 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity {
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 88888;
+    private boolean isPermissionRequestInProgress = false; // Flag to prevent repeated permission requests
+    private boolean permissionGrantedToastShown = false; // Flag to prevent spamming Toasts
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -33,20 +36,31 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        checkPermission();
+        if (!isPermissionRequestInProgress) {
+            checkPermission();
+        }
     }
 
     private void checkPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return;
         }
-        // request camera permission if it has not been grunted.
+        // request camera permission if it has not been granted.
+        boolean needStorage = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && // Android 13
+                checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED;
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
-        ) {
-
-            requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE}, CAMERA_PERMISSION_REQUEST_CODE);
+                needStorage) {
+            if (!isPermissionRequestInProgress) {
+                isPermissionRequestInProgress = true;
+                if (needStorage) {
+                    requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE}, CAMERA_PERMISSION_REQUEST_CODE);
+                } else {
+                    requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO}, CAMERA_PERMISSION_REQUEST_CODE);
+                }
+            }
+        } else {
+            isPermissionRequestInProgress = false; // Reset the flag if all permissions are granted
         }
 
     }
@@ -54,12 +68,23 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        isPermissionRequestInProgress = false; // Reset the flag after handling the result
         switch (requestCode) {
             case CAMERA_PERMISSION_REQUEST_CODE:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(MainActivity.this, "permission has been grunted.", Toast.LENGTH_SHORT).show();
+                boolean allGranted = true;
+                for (int result : grantResults) {
+                    if (result != PackageManager.PERMISSION_GRANTED) {
+                        allGranted = false;
+                        break;
+                    }
+                }
+                if (allGranted) {
+                    if (!permissionGrantedToastShown) {
+                        Toast.makeText(MainActivity.this, "permission has been granted.", Toast.LENGTH_SHORT).show();
+                        permissionGrantedToastShown = true;
+                    }
                 } else {
-                    Toast.makeText(MainActivity.this, "[WARN] permission is not grunted.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "[WARN] permission is not granted.", Toast.LENGTH_SHORT).show();
                 }
                 break;
         }
