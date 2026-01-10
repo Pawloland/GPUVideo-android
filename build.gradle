@@ -5,7 +5,7 @@ buildscript {
     ext.exo_player_version = '2.18.2'
     ext.app_compat_version = '1.7.1'
     ext.constraint_layout_version = '2.2.1'
-    ext.glide_version = '4.15.1'
+    ext.glide_version = '5.0.5'
 
     repositories {
         google()
