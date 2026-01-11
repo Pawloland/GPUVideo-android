@@ -6,6 +6,8 @@ import android.graphics.SurfaceTexture;
 
 public class GlSurfaceTexture implements SurfaceTexture.OnFrameAvailableListener {
 
+    public static final int GL_TEXTURE_EXTERNAL_OES = 0x8D65;
+
     private SurfaceTexture surfaceTexture;
     private SurfaceTexture.OnFrameAvailableListener onFrameAvailableListener;
 
@@ -21,7 +23,7 @@ public class GlSurfaceTexture implements SurfaceTexture.OnFrameAvailableListener
 
 
     public int getTextureTarget() {
-        return GlPreview.GL_TEXTURE_EXTERNAL_OES;
+        return GL_TEXTURE_EXTERNAL_OES;
     }
 
     public void updateTexImage() {

@@ -1,92 +1,188 @@
 package com.daasuu.gpuvideoandroid;
 
-import android.Manifest;
-import android.annotation.SuppressLint;
-import android.content.pm.PackageManager;
-import android.os.Build;
+import android.net.Uri;
 import android.os.Bundle;
-import android.widget.Toast;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.RelativeLayout;
+import android.widget.SeekBar;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.media3.common.MediaItem;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
+
+import com.daasuu.gpuv.egl.filter.GlFilter;
+import com.daasuu.gpuv.player.GPUPlayerView;
+import com.daasuu.gpuvideoandroid.widget.MovieWrapperView;
+import com.daasuu.gpuvideoandroid.widget.PlayerTimer;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int CAMERA_PERMISSION_REQUEST_CODE = 88888;
-    private boolean isPermissionRequestInProgress = false; // Flag to prevent repeated permission requests
-    private boolean permissionGrantedToastShown = false; // Flag to prevent spamming Toasts
+    private static final String STREAM_URL_MP4_VOD_LONG = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4";
+
+    private GPUPlayerView gpuPlayerView;
+    private ExoPlayer player;
+    private Button button;
+    private SeekBar timeSeekBar;
+    private SeekBar filterSeekBar;
+    private PlayerTimer playerTimer;
+    private GlFilter filter;
+    private FilterAdjuster adjuster;
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        findViewById(R.id.movie_preview).setOnClickListener(v -> {
-            PlayerActivity.startActivity(MainActivity.this);
-        });
-        findViewById(R.id.camera_record).setOnClickListener(v -> {
-            CameraSelectActivity.startActivity(MainActivity.this);
-        });
-        findViewById(R.id.mp4_compose).setOnClickListener(v -> {
-            Mp4ComposeActivity.startActivity(MainActivity.this);
-        });
+        setUpViews();
     }
-
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (!isPermissionRequestInProgress) {
-            checkPermission();
-        }
-    }
-
-    private void checkPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return;
-        }
-        // request camera permission if it has not been granted.
-        boolean needStorage = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && // Android 13
-                checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED;
-        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                needStorage) {
-            if (!isPermissionRequestInProgress) {
-                isPermissionRequestInProgress = true;
-                if (needStorage) {
-                    requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE}, CAMERA_PERMISSION_REQUEST_CODE);
-                } else {
-                    requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO}, CAMERA_PERMISSION_REQUEST_CODE);
-                }
-            }
-        } else {
-            isPermissionRequestInProgress = false; // Reset the flag if all permissions are granted
-        }
-
+        setUpSimpleExoPlayer();
+        setUoGlPlayerView();
+        setUpTimer();
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        isPermissionRequestInProgress = false; // Reset the flag after handling the result
-        switch (requestCode) {
-            case CAMERA_PERMISSION_REQUEST_CODE:
-                boolean allGranted = true;
-                for (int result : grantResults) {
-                    if (result != PackageManager.PERMISSION_GRANTED) {
-                        allGranted = false;
-                        break;
-                    }
-                }
-                if (allGranted) {
-                    if (!permissionGrantedToastShown) {
-                        Toast.makeText(MainActivity.this, "permission has been granted.", Toast.LENGTH_SHORT).show();
-                        permissionGrantedToastShown = true;
-                    }
-                } else {
-                    Toast.makeText(MainActivity.this, "[WARN] permission is not granted.", Toast.LENGTH_SHORT).show();
-                }
-                break;
+    protected void onPause() {
+        super.onPause();
+        releasePlayer();
+        if (playerTimer != null) {
+            playerTimer.stop();
+            playerTimer.removeMessages(0);
         }
+    }
+
+    private void setUpViews() {
+        // play pause
+        button = (Button) findViewById(R.id.btn);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (player == null) return;
+
+                if (button.getText().toString().equals(MainActivity.this.getString(R.string.pause))) {
+                    player.setPlayWhenReady(false);
+                    button.setText(R.string.play);
+                } else {
+                    player.setPlayWhenReady(true);
+                    button.setText(R.string.pause);
+                }
+            }
+        });
+
+        // seek
+        timeSeekBar = (SeekBar) findViewById(R.id.timeSeekBar);
+        timeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (player == null) return;
+
+                if (!fromUser) {
+                    // We're not interested in programmatically generated changes to
+                    // the progress bar's position.
+                    return;
+                }
+
+                player.seekTo(progress * 1000);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // do nothing
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // do nothing
+            }
+        });
+
+        filterSeekBar = (SeekBar) findViewById(R.id.filterSeekBar);
+        filterSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (adjuster != null) {
+                    adjuster.adjust(filter, progress);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // do nothing
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // do nothing
+            }
+        });
+
+        // list
+        ListView listView = findViewById(R.id.list);
+        final List<FilterType> filterTypes = FilterType.createFilterList();
+        listView.setAdapter(new FilterAdapter(this, R.layout.row_text, filterTypes));
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                filter = FilterType.createGlFilter(filterTypes.get(position), getApplicationContext());
+                adjuster = FilterType.createFilterAdjuster(filterTypes.get(position));
+                findViewById(R.id.filterSeekBarLayout).setVisibility(adjuster != null ? View.VISIBLE : View.GONE);
+                gpuPlayerView.setGlFilter(filter);
+            }
+        });
+    }
+
+
+    private void setUpSimpleExoPlayer() {
+        // SimpleExoPlayer
+        player = new ExoPlayer.Builder(this)
+                .setTrackSelector(new DefaultTrackSelector(this))
+                .build();
+
+        player.addMediaItem(MediaItem.fromUri(Uri.parse(STREAM_URL_MP4_VOD_LONG)));
+        player.prepare();
+        player.setPlayWhenReady(true);
+    }
+
+
+    private void setUoGlPlayerView() {
+        gpuPlayerView = new GPUPlayerView(this);
+        gpuPlayerView.setExoPlayer(player);
+        gpuPlayerView.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        ((MovieWrapperView) findViewById(R.id.layout_movie_wrapper)).addView(gpuPlayerView);
+        gpuPlayerView.onResume();
+    }
+
+
+    private void setUpTimer() {
+        playerTimer = new PlayerTimer();
+        playerTimer.setCallback(timeMillis -> {
+            long position = player.getCurrentPosition();
+            long duration = player.getDuration();
+
+            if (duration <= 0) return;
+
+            timeSeekBar.setMax((int) duration / 1000);
+            timeSeekBar.setProgress((int) position / 1000);
+        });
+        playerTimer.start();
+    }
+
+
+    private void releasePlayer() {
+        gpuPlayerView.onPause();
+        ((MovieWrapperView) findViewById(R.id.layout_movie_wrapper)).removeAllViews();
+        gpuPlayerView = null;
+        player.stop();
+        player.release();
+        player = null;
     }
 }

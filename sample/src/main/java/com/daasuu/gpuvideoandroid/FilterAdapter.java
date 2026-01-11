@@ -17,7 +17,6 @@ public class FilterAdapter extends ArrayAdapter<FilterType> {
 
     private final Context context;
     private final List<FilterType> values;
-    private boolean isWhite = false;
 
     public FilterAdapter(Context context, int resource, List<FilterType> objects) {
         super(context, resource, objects);
@@ -32,11 +31,7 @@ public class FilterAdapter extends ArrayAdapter<FilterType> {
         if (rowView == null) {
             LayoutInflater inflater = (LayoutInflater) context
                     .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            if (isWhite) {
-                rowView = inflater.inflate(R.layout.row_white_text, null);
-            } else {
-                rowView = inflater.inflate(R.layout.row_text, null);
-            }
+            rowView = inflater.inflate(R.layout.row_text, null);
             // configure view holder
             ViewHolder viewHolder = new ViewHolder();
             viewHolder.text = rowView.findViewById(R.id.label);
@@ -48,11 +43,6 @@ public class FilterAdapter extends ArrayAdapter<FilterType> {
         holder.text.setText(s);
 
         return rowView;
-    }
-
-    public FilterAdapter whiteMode() {
-        isWhite = true;
-        return this;
     }
 
 
