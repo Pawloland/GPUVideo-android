@@ -44,6 +44,7 @@ public class GPUPlayerRenderer extends GlFrameBufferObjectRenderer implements Su
 
     private ExoPlayer exoPlayer;
     private Handler uiHandler;
+    private Surface videoSurface;
 
     GPUPlayerRenderer(GPUPlayerView glPreview) {
         super();
@@ -92,7 +93,12 @@ public class GPUPlayerRenderer extends GlFrameBufferObjectRenderer implements Su
         previewFilter.setup();
 
         Surface surface = new Surface(previewTexture.getSurfaceTexture());
-        uiHandler.post(() -> exoPlayer.setVideoSurface(surface));
+        videoSurface = surface;
+        uiHandler.post(() -> {
+            if (exoPlayer != null) {
+                exoPlayer.setVideoSurface(surface);
+            }
+        });
 
         Matrix.setLookAtM(VMatrix, 0,
                 0.0f, 0.0f, 5.0f,
@@ -172,6 +178,14 @@ public class GPUPlayerRenderer extends GlFrameBufferObjectRenderer implements Su
 
     void setExoPlayer(ExoPlayer exoPlayer) {
         this.exoPlayer = exoPlayer;
+        // If surface was already created, set it on the player to avoid race conditions
+        if (videoSurface != null) {
+            uiHandler.post(() -> {
+                if (this.exoPlayer != null) {
+                    this.exoPlayer.setVideoSurface(videoSurface);
+                }
+            });
+        }
     }
 
     void release() {

@@ -1,14 +1,18 @@
 package com.daasuu.gpuv.player;
 
+import static com.daasuu.gpuv.player.PlayerScaleType.RESIZE_FIT;
+
 import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
+
+import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
+import androidx.media3.exoplayer.ExoPlayer;
+
 import com.daasuu.gpuv.egl.GlConfigChooser;
 import com.daasuu.gpuv.egl.GlContextFactory;
 import com.daasuu.gpuv.egl.filter.GlFilter;
-import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.common.Player;
-import androidx.media3.common.VideoSize;
 
 public class GPUPlayerView extends GLSurfaceView implements Player.Listener {
 
@@ -18,7 +22,7 @@ public class GPUPlayerView extends GLSurfaceView implements Player.Listener {
     private ExoPlayer player;
 
     private float videoAspect = 1f;
-    private PlayerScaleType playerScaleType = PlayerScaleType.RESIZE_FIT_WIDTH;
+    private PlayerScaleType playerScaleType = RESIZE_FIT;
 
     public GPUPlayerView(Context context) {
         this(context, null);
@@ -57,27 +61,56 @@ public class GPUPlayerView extends GLSurfaceView implements Player.Listener {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        // Compute measured width/height from MeasureSpecs respecting their modes.
+        final int widthMode = android.view.View.MeasureSpec.getMode(widthMeasureSpec);
+        final int heightMode = android.view.View.MeasureSpec.getMode(heightMeasureSpec);
+        final int widthSize = android.view.View.MeasureSpec.getSize(widthMeasureSpec);
+        final int heightSize = android.view.View.MeasureSpec.getSize(heightMeasureSpec);
 
-        int measuredWidth = getMeasuredWidth();
-        int measuredHeight = getMeasuredHeight();
+        int measuredWidth = widthSize;
+        int measuredHeight = heightSize;
+
+        if (widthMode != android.view.View.MeasureSpec.EXACTLY || heightMode != android.view.View.MeasureSpec.EXACTLY) {
+            // Fallback to defaults if parent didn't impose exact sizes
+            measuredWidth = getSuggestedMinimumWidth();
+            measuredHeight = getSuggestedMinimumHeight();
+            if (measuredWidth <= 0) measuredWidth = widthSize > 0 ? widthSize : 1;
+            if (measuredHeight <= 0) measuredHeight = heightSize > 0 ? heightSize : 1;
+        }
+
+        float measuredAspectRatio = measuredHeight == 0 ? 1f : (float) measuredWidth / measuredHeight;
 
         int viewWidth = measuredWidth;
         int viewHeight = measuredHeight;
 
         switch (playerScaleType) {
-            case RESIZE_FIT_WIDTH:
-                viewHeight = (int) (measuredWidth / videoAspect);
+            case RESIZE_FIT:
+                // Follows aspect ratio of the video and fits video within view, so no parts are cut off thus black bars may be visible
+                if (measuredAspectRatio > videoAspect) {
+                    // view is wider than video
+                    viewWidth = (int) (measuredHeight * videoAspect);
+                } else {
+                    // view is taller than video
+                    viewHeight = (int) (measuredWidth / videoAspect);
+                }
                 break;
-            case RESIZE_FIT_HEIGHT:
-                viewWidth = (int) (measuredHeight * videoAspect);
+            case RESIZE_FILL:
+                // Doesn't follow aspect ratio of the video and stretches video's width and height to match view's width and height so no black bars are visible and no parts are cut off
+                break;
+            case RESIZE_ZOOM:
+                // Follows aspect ratio of the video and zooms in so that no black bars are visible but parts of the video may be cut off
+                if (measuredAspectRatio > videoAspect) {
+                    // view is wider than video
+                    viewHeight = (int) (measuredWidth / videoAspect);
+                } else {
+                    // view is taller than video
+                    viewWidth = (int) (measuredHeight * videoAspect);
+                }
                 break;
         }
 
-        // Log.d(TAG, "onMeasure viewWidth = " + viewWidth + " viewHeight = " + viewHeight);
-
+        // Log.i(TAG, "onMeasure: scale: " + playerScaleType.name() + " videoAspect: " + videoAspect + " measuredAspectRatio: " + measuredAspectRatio + " viewWidth: " + viewWidth + " viewHeight: " + viewHeight + " measuredWidth: " + measuredWidth + " measuredHeight: " + measuredHeight);
         setMeasuredDimension(viewWidth, viewHeight);
-
     }
 
     @Override
@@ -86,9 +119,8 @@ public class GPUPlayerView extends GLSurfaceView implements Player.Listener {
         renderer.release();
     }
 
-    //////////////////////////////////////////////////////////////////////////
+    /// ///////////////////////////////////////////////////////////////////////
     // Player.Listener
-
     @Override
     public void onVideoSizeChanged(VideoSize videoSize) {
         // Log.d(TAG, "width = " + width + " height = " + height + " unappliedRotationDegrees = " + unappliedRotationDegrees + " pixelWidthHeightRatio = " + pixelWidthHeightRatio);
