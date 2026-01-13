@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
 }
 
 android {
@@ -19,6 +20,12 @@ android {
     }
     namespace = 'com.daasuu.gpuv'
 
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
+    }
+
 }
 
 dependencies {
@@ -27,4 +34,21 @@ dependencies {
     implementation "androidx.media3:media3-exoplayer:$exo_player_version"
     implementation "androidx.media3:media3-ui:$exo_player_version"
 
+}
+
+/**
+ * JITPACK PUBLISH CONFIG
+ */
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components["release"]
+
+                groupId = "com.github.daasuu"
+                artifactId = "gpuv"
+                version = VERSION_NAME
+            }
+        }
+    }
 }
